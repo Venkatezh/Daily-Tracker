@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Habit Tracker - Venky & Kezia</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { Chart } from 'https://cdn.jsdelivr.net/npm/chart.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -26,56 +26,29 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Define habits for Venky and Kezia
-        const venkyHabits = ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking", "Drinking"];
+        const venkyHabits = ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking"];
         const keziaHabits = ["Talking too much", "Anger", "Overthinking", "Laziness", "Crying", "Drinking", "Dependency"];
+        
+        const habitKeyMap = {
+            "Venky": venkyHabits,
+            "Kezia": keziaHabits
+        };
 
-        // Initialize progress chart
-        let venkyData = [];
-        let keziaData = [];
-
-        function loadHabits(name, habits, chartId, containerId) {
-            const container = document.getElementById(containerId);
-            const habitData = name === "Venky" ? venkyData : keziaData;
-            const chartContainer = document.getElementById(chartId);
-
+        // Load habits and display them on the page
+        function loadHabits(name, habits) {
+            const container = document.getElementById(`${name.toLowerCase()}-habits`);
             container.innerHTML = "";
+
             habits.forEach((habit, index) => {
                 const habitKey = `${name}/habit-${index}`;
                 const habitRef = ref(db, habitKey);
                 
                 onValue(habitRef, snapshot => {
                     const count = snapshot.val() || 0;
-                    habitData[index] = count;
-                    
                     const li = document.createElement("li");
                     li.innerHTML = `<span>${habit} (Count: ${count})</span> <button onclick="incrementHabit('${name}', ${index})">➕</button>`;
                     container.appendChild(li);
                 });
-            });
-
-            // Initialize or update chart with habit progress
-            const ctx = chartContainer.getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: habits,
-                    datasets: [{
-                        label: `${name}'s Habit Progress`,
-                        data: habitData,
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
             });
         }
 
@@ -86,12 +59,59 @@
             onValue(habitRef, snapshot => {
                 const count = snapshot.val() || 0;
                 set(habitRef, count + 1);
+                updateChart(name);
             }, { onlyOnce: true });
         }
 
+        // Reset habits for each user
+        window.resetHabits = function(name) {
+            const nameRef = ref(db, name);
+            set(nameRef, {});
+            loadHabits(name, habitKeyMap[name]);
+            updateChart(name);
+        }
+
+        // Update the chart based on the current habit count data
+        async function updateChart(name) {
+            const habitCounts = [];
+            const habits = habitKeyMap[name];
+
+            for (let i = 0; i < habits.length; i++) {
+                const habitKey = `${name}/habit-${i}`;
+                const habitRef = ref(db, habitKey);
+                const snapshot = await get(habitRef);
+                const count = snapshot.val() || 0;
+                habitCounts.push(count);
+            }
+
+            const ctx = document.getElementById(`${name.toLowerCase()}-chart`).getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: habits,
+                    datasets: [{
+                        label: `${name}'s Habit Progress`,
+                        data: habitCounts,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
         window.onload = function() {
-            loadHabits("Venky", venkyHabits, "venky-chart", "venky-habits");
-            loadHabits("Kezia", keziaHabits, "kezia-chart", "kezia-habits");
+            loadHabits("Venky", venkyHabits);
+            loadHabits("Kezia", keziaHabits);
+            updateChart("Venky");
+            updateChart("Kezia");
         }
     </script>
     <style>
@@ -101,7 +121,7 @@
         .habit-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd; }
         button { padding: 8px 12px; cursor: pointer; }
         .reset-btn { margin-top: 20px; padding: 10px 15px; background-color: red; color: white; border: none; cursor: pointer; }
-        canvas { margin-top: 30px; width: 100% !important; height: 300px; }
+        canvas { margin-top: 30px; }
     </style>
 </head>
 <body>
@@ -109,11 +129,12 @@
     <div class="container">
         <h2>Venky's Habits</h2>
         <ul class="habit-list" id="venky-habits"></ul>
-        <canvas id="venky-chart"></canvas>
-
+        <button class="reset-btn" onclick="resetHabits('Venky')">Reset Venky's Progress</button>
+        <canvas id="venky-chart" width="400" height="200"></canvas>
         <h2>Kezia's Habits</h2>
         <ul class="habit-list" id="kezia-habits"></ul>
-        <canvas id="kezia-chart"></canvas>
+        <button class="reset-btn" onclick="resetHabits('Kezia')">Reset Kezia's Progress</button>
+        <canvas id="kezia-chart" width="400" height="200"></canvas>
     </div>
 </body>
 </html>
