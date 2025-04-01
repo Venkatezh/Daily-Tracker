@@ -7,7 +7,7 @@
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -25,27 +25,55 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const venkyHabits = ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking"];
-        const keziaHabits = ["Talking too much", "Anger", "Overthinking", "Laziness", "Crying", "Drinking", "Dependency"];
+        const users = {
+            "Venky": ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking"],
+            "Kezia": ["Talking too much", "Anger", "Overthinking", "Laziness", "Crying", "Drinking", "Dependency"]
+        };
 
-        function loadHabits(name, habits, containerId) {
+        function loadCalendar(user, containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = "";
-            habits.forEach((habit, index) => {
-                const habitKey = `${name}/habit-${index}`;
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let calendarHTML = `<table><tr>`;
+            for (let i = 0; i < firstDay; i++) {
+                calendarHTML += "<td></td>";
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${month + 1}-${day}`;
+                calendarHTML += `<td id="${user}-${dateKey}" onclick="selectDay('${user}', '${dateKey}')">${day}</td>`;
+                if ((firstDay + day) % 7 === 0) {
+                    calendarHTML += "</tr><tr>";
+                }
+            }
+            
+            calendarHTML += "</tr></table>";
+            container.innerHTML = calendarHTML;
+        }
+
+        window.selectDay = function(user, dateKey) {
+            const habitContainer = document.getElementById(`${user}-habits`);
+            habitContainer.innerHTML = "";
+            users[user].forEach((habit, index) => {
+                const habitKey = `${user}/${dateKey}/habit-${index}`;
                 const habitRef = ref(db, habitKey);
                 
                 onValue(habitRef, snapshot => {
                     const count = snapshot.val() || 0;
                     const li = document.createElement("li");
-                    li.innerHTML = `<span>${habit} (Count: ${count})</span> <button onclick="incrementHabit('${name}', ${index})">➕</button>`;
-                    container.appendChild(li);
+                    li.innerHTML = `<span>${habit} (Count: ${count})</span> <button onclick="incrementHabit('${user}', '${dateKey}', ${index})">➕</button>`;
+                    habitContainer.appendChild(li);
                 });
             });
         }
 
-        window.incrementHabit = function(name, index) {
-            const habitKey = `${name}/habit-${index}`;
+        window.incrementHabit = function(user, dateKey, index) {
+            const habitKey = `${user}/${dateKey}/habit-${index}`;
             const habitRef = ref(db, habitKey);
             
             onValue(habitRef, snapshot => {
@@ -54,35 +82,31 @@
             }, { onlyOnce: true });
         }
 
-        window.resetHabits = function(name) {
-            const nameRef = ref(db, name);
-            remove(nameRef);
-            loadHabits(name, name === "Venky" ? venkyHabits : keziaHabits, name === "Venky" ? "venky-habits" : "kezia-habits");
-        }
-
         window.onload = function() {
-            loadHabits("Venky", venkyHabits, "venky-habits");
-            loadHabits("Kezia", keziaHabits, "kezia-habits");
+            loadCalendar("Venky", "venky-calendar");
+            loadCalendar("Kezia", "kezia-calendar");
         }
     </script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         .container { max-width: 600px; margin: auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        td { width: 14%; padding: 10px; border: 1px solid #ddd; cursor: pointer; }
         .habit-list { list-style-type: none; padding: 0; }
         .habit-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd; }
         button { padding: 8px 12px; cursor: pointer; }
-        .reset-btn { margin-top: 20px; padding: 10px 15px; background-color: red; color: white; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
     <h1>Habit Tracker</h1>
     <div class="container">
-        <h2>Venky's Habits</h2>
+        <h2>Venky's Monthly Progress</h2>
+        <div id="venky-calendar"></div>
         <ul class="habit-list" id="venky-habits"></ul>
-        <button class="reset-btn" onclick="resetHabits('Venky')">Reset Venky's Progress</button>
-        <h2>Kezia's Habits</h2>
+        
+        <h2>Kezia's Monthly Progress</h2>
+        <div id="kezia-calendar"></div>
         <ul class="habit-list" id="kezia-habits"></ul>
-        <button class="reset-btn" onclick="resetHabits('Kezia')">Reset Kezia's Progress</button>
     </div>
 </body>
 </html>
