@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker - Venky & Kezia</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { max-width: 600px; margin: auto; padding: 20px; }
+        .habit-list { list-style-type: none; padding: 0; }
+        .habit-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd; }
+        button { padding: 8px 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Habit Tracker</h1>
+    <div class="container">
+        <h2>Venky's Habits</h2>
+        <ul class="habit-list" id="venky-habits"></ul>
+        <h2>Kezia's Habits</h2>
+        <ul class="habit-list" id="kezia-habits"></ul>
+    </div>
+    <script>
+        const venkyHabits = ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking"];
+        const keziaHabits = ["Talking too much", "Anger", "Overthinking", "Laziness", "Crying", "Drinking", "Dependency"];
+
+        function loadHabits(name, habits, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            habits.forEach((habit, index) => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span>${habit}</span> <button onclick="toggleHabit('${name}', ${index})">${getHabitStatus(name, index)}</button>`;
+                container.appendChild(li);
+            });
+        }
+
+        function getHabitStatus(name, index) {
+            return localStorage.getItem(`${name}-habit-${index}`) === "done" ? "✅" : "❌";
+        }
+
+        function toggleHabit(name, index) {
+            const key = `${name}-habit-${index}`;
+            localStorage.setItem(key, localStorage.getItem(key) === "done" ? "" : "done");
+            loadHabits("Venky", venkyHabits, "venky-habits");
+            loadHabits("Kezia", keziaHabits, "kezia-habits");
+        }
+
+        loadHabits("Venky", venkyHabits, "venky-habits");
+        loadHabits("Kezia", keziaHabits, "kezia-habits");
+    </script>
+</body>
+</html>
