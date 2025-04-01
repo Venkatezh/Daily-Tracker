@@ -4,23 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Habit Tracker - Venky & Kezia</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        .container { max-width: 600px; margin: auto; padding: 20px; }
-        .habit-list { list-style-type: none; padding: 0; }
-        .habit-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd; }
-        button { padding: 8px 12px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <h1>Habit Tracker</h1>
-    <div class="container">
-        <h2>Venky's Habits</h2>
-        <ul class="habit-list" id="venky-habits"></ul>
-        <h2>Kezia's Habits</h2>
-        <ul class="habit-list" id="kezia-habits"></ul>
-    </div>
-    <script>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCz_cKHGwSrg3gW48fbIeL8gdDLeUb4zqs",
+            authDomain: "habit-tracker-9209d.firebaseapp.com",
+            databaseURL: "https://habit-tracker-9209d-default-rtdb.firebaseio.com",
+            projectId: "habit-tracker-9209d",
+            storageBucket: "habit-tracker-9209d.appspot.com",
+            messagingSenderId: "905911563594",
+            appId: "1:905911563594:web:4b4897b171bee90abdfdb3",
+            measurementId: "G-E3HYTEQ5DP"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
         const venkyHabits = ["Smoking", "Isolation", "Binge-watching", "Pessimism", "Explicit Content", "Irregular Eating", "Poor Sleep", "Obsession", "Delusional Thinking"];
         const keziaHabits = ["Talking too much", "Anger", "Overthinking", "Laziness", "Crying", "Drinking", "Dependency"];
 
@@ -28,25 +32,57 @@
             const container = document.getElementById(containerId);
             container.innerHTML = "";
             habits.forEach((habit, index) => {
-                const li = document.createElement("li");
-                li.innerHTML = `<span>${habit}</span> <button onclick="toggleHabit('${name}', ${index})">${getHabitStatus(name, index)}</button>`;
-                container.appendChild(li);
+                const habitKey = `${name}/habit-${index}`;
+                const habitRef = ref(db, habitKey);
+                
+                onValue(habitRef, snapshot => {
+                    const count = snapshot.val() || 0;
+                    const li = document.createElement("li");
+                    li.innerHTML = `<span>${habit} (Count: ${count})</span> <button onclick="incrementHabit('${name}', ${index})">➕</button>`;
+                    container.appendChild(li);
+                });
             });
         }
 
-        function getHabitStatus(name, index) {
-            return localStorage.getItem(`${name}-habit-${index}`) === "done" ? "✅" : "❌";
+        window.incrementHabit = function(name, index) {
+            const habitKey = `${name}/habit-${index}`;
+            const habitRef = ref(db, habitKey);
+            
+            onValue(habitRef, snapshot => {
+                const count = snapshot.val() || 0;
+                set(habitRef, count + 1);
+            }, { onlyOnce: true });
         }
 
-        function toggleHabit(name, index) {
-            const key = `${name}-habit-${index}`;
-            localStorage.setItem(key, localStorage.getItem(key) === "done" ? "" : "done");
+        window.resetHabits = function(name) {
+            const nameRef = ref(db, name);
+            remove(nameRef);
+            loadHabits(name, name === "Venky" ? venkyHabits : keziaHabits, name === "Venky" ? "venky-habits" : "kezia-habits");
+        }
+
+        window.onload = function() {
             loadHabits("Venky", venkyHabits, "venky-habits");
             loadHabits("Kezia", keziaHabits, "kezia-habits");
         }
-
-        loadHabits("Venky", venkyHabits, "venky-habits");
-        loadHabits("Kezia", keziaHabits, "kezia-habits");
     </script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .container { max-width: 600px; margin: auto; padding: 20px; }
+        .habit-list { list-style-type: none; padding: 0; }
+        .habit-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd; }
+        button { padding: 8px 12px; cursor: pointer; }
+        .reset-btn { margin-top: 20px; padding: 10px 15px; background-color: red; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Habit Tracker</h1>
+    <div class="container">
+        <h2>Venky's Habits</h2>
+        <ul class="habit-list" id="venky-habits"></ul>
+        <button class="reset-btn" onclick="resetHabits('Venky')">Reset Venky's Progress</button>
+        <h2>Kezia's Habits</h2>
+        <ul class="habit-list" id="kezia-habits"></ul>
+        <button class="reset-btn" onclick="resetHabits('Kezia')">Reset Kezia's Progress</button>
+    </div>
 </body>
 </html>
